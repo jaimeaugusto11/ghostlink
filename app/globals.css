@@ -1,0 +1,56 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 255, 255, 255;
+  --background-start-rgb: 16, 34, 24;
+  --background-end-rgb: 5, 10, 7;
+}
+
+@layer base {
+  body {
+    @apply bg-background-dark text-slate-200 font-display min-h-screen overflow-x-hidden;
+  }
+}
+
+@layer components {
+  .glass-panel {
+    background: rgba(22, 46, 34, 0.4);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(43, 238, 124, 0.05);
+  }
+
+  .scanlines {
+    background: linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0),
+      rgba(255, 255, 255, 0) 50%,
+      rgba(0, 0, 0, 0.1) 50%,
+      rgba(0, 0, 0, 0.1)
+    );
+    background-size: 100% 4px;
+    pointer-events: none;
+  }
+
+  .bg-deep-void {
+    background-color: #020403;
+    background-image: radial-gradient(circle at 50% 0%, rgba(43, 238, 124, 0.03) 0%, rgba(2, 4, 3, 0) 50%);
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #102218;
+}
+::-webkit-scrollbar-thumb {
+  background: #234533;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #2bee7c;
+}
