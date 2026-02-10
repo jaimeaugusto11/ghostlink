@@ -87,7 +87,7 @@ export default function Home() {
     try {
       const chatRef = await addDoc(collection(db, 'chats'), {
         password: generatedPassword,
-        maxUsers: 2,
+        maxUsers: 10,
         currentUsers: 0,
         createdAt: serverTimestamp(),
         expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours from now
