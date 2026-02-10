@@ -5,14 +5,14 @@ import { getFirestore } from "firebase/firestore";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyA6i0EtJjfFcbVVBqul047T5eo9Kto3TIk",
-  authDomain: "tallent-8b886.firebaseapp.com",
-  databaseURL: "https://tallent-8b886-default-rtdb.firebaseio.com",
-  projectId: "tallent-8b886",
-  storageBucket: "tallent-8b886.firebasestorage.app",
-  messagingSenderId: "238393198809",
-  appId: "1:238393198809:web:d5bf72d3821f6fb12056c8",
-  measurementId: "G-72RX9T32MY"
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
 };
 
 // Initialize Firebase
