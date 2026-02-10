@@ -55,14 +55,10 @@ export default function Home() {
          return;
       }
 
-      // Check Max Users
       if (chatData.currentUsers >= chatData.maxUsers) {
-        // Allow re-entry if we have the password in session?? 
-        // For now, strict check.
-        // setError('Sessão cheia.');
-        // setLoading(false);
-        // return;
-        // Proceeding anyway for simplicity, ideally we track user IDs.
+        setError(`Sessão cheia (Máx ${chatData.maxUsers}).`);
+        setLoading(false);
+        return;
       }
 
       // Update User Count

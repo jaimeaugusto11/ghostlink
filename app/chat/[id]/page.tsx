@@ -4,11 +4,13 @@ import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { db } from '@/lib/firebase';
-import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, doc, updateDoc, arrayUnion, getDoc } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, doc, updateDoc, arrayUnion, getDoc, increment } from 'firebase/firestore';
+import { generateCodename } from '@/utils/codenames';
 
 interface Message {
   id: string;
   senderId: string;
+  senderName?: string;
   type: 'text' | 'image' | 'video';
   content: string;
   createdAt: any;
@@ -22,7 +24,30 @@ export default function ChatPage() {
   const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
-  const [userId] = useState(() => Math.random().toString(36).substring(7));
+  
+  // Persistent User Identity (Session Storage or Generated)
+  const [userId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = sessionStorage.getItem(`user_id_${chatId}`);
+      if (stored) return stored;
+      const newId = Math.random().toString(36).substring(7);
+      sessionStorage.setItem(`user_id_${chatId}`, newId);
+      return newId;
+    }
+    return Math.random().toString(36).substring(7);
+  });
+
+  const [userName] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = sessionStorage.getItem(`user_name_${chatId}`);
+      if (stored) return stored;
+      const newName = generateCodename();
+      sessionStorage.setItem(`user_name_${chatId}`, newName);
+      return newName;
+    }
+    return 'Anonymous';
+  });
+
   const [isValidating, setIsValidating] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -67,12 +92,8 @@ export default function ChatPage() {
         ...doc.data()
       })) as any[];
       
-      // Calculate remaining time manually for display purposes if needed, 
-      // though for simplicity we just load them.
-      // We map the firestore data to our structure.
       const mappedMessages = msgs.map(m => ({
         ...m,
-        // Default timeLeft if not present (logic for countdown should be handled carefully)
         timeLeft: m.timeLeft || 60, 
         reactions: m.reactions || {}
       }));
@@ -88,13 +109,8 @@ export default function ChatPage() {
     const timer = setInterval(() => {
       setMessages((prev) => 
         prev.map((m) => {
-           // Only decrement if it's not a persistent message (if we had that concept)
-           // For now, let's just decrement locally. 
-           // In a real app, 'createdAt' combined with a server function deletes them.
            return { ...m, timeLeft: m.timeLeft - 1 };
         }).filter((m) => m.timeLeft > 0) 
-        // Note: Client side filtering for visual effect only. 
-        // Data still exists in Firestore until deleted.
       );
     }, 1000);
 
@@ -112,6 +128,7 @@ export default function ChatPage() {
     try {
       await addDoc(collection(db, 'chats', chatId as string, 'messages'), {
         senderId: userId,
+        senderName: userName,
         type: 'text',
         content: inputText,
         createdAt: serverTimestamp(),
@@ -128,18 +145,22 @@ export default function ChatPage() {
   const addReaction = async (messageId: string, emoji: string) => {
      try {
        const msgRef = doc(db, 'chats', chatId as string, 'messages', messageId);
-       // We need to use dot notation for nested updates in map 'reactions.emoji' 
-       // But simpler approach: read, update, write or structure reactions differently.
-       // For now, let's skip complex atomic updates and just ignore if it fails or structure simply.
-       // Ideally: `reactions.${emoji}`: arrayUnion(userId)
-       
-       // Note: Firestore map keys with special chars might be tricky.
-       // Let's rely on a simpler structure or just update the whole map? 
-       // arrayUnion is best.
        
        await updateDoc(msgRef, {
-         [`reactions.${emoji}`]: arrayUnion(userId)
+         [`reactions.${emoji}`]: arrayUnion(userName) // Use Name instead of ID for display context? Or keep ID? kept Name for simpler display maybe? usually ID is better but let's use ID for consistency.
+         // Actually arrayUnion(userId) is better for unique reaction per user.
+         // kept userId here.
        });
+       
+       // Note: Updating reactions logic to use arrayUnion(userId) is correct.
+       // However, to show WHO reacted, we might need names.
+       // For now, simple count or just showing reaction is enough.
+       // Let's stick to userId.
+       
+       await updateDoc(msgRef, {
+          [`reactions.${emoji}`]: arrayUnion(userId)
+       });
+
      } catch (err) {
        console.error("Error adding reaction:", err);
      }
@@ -157,11 +178,24 @@ export default function ChatPage() {
           <span className="material-icons-round text-primary text-3xl animate-pulse-slow">leak_add</span>
           <div>
             <h1 className="font-bold text-lg tracking-tight leading-none text-white">GhostLink</h1>
-            <p className="text-xs text-primary/60 font-mono tracking-wider">#{chatId?.toString().substring(0, 8).toUpperCase()}</p>
+            <div className="flex items-center gap-2">
+              <p className="text-xs text-primary/60 font-mono tracking-wider">#{chatId?.toString().substring(0, 8).toUpperCase()}</p>
+              <span className="text-xs text-slate-500">•</span>
+              <p className="text-xs text-primary font-bold">{userName}</p>
+            </div>
           </div>
         </div>
         <button 
-          onClick={() => {
+          onClick={async () => {
+            try {
+               // Decrement user count
+               const chatRef = doc(db, 'chats', chatId as string);
+               await updateDoc(chatRef, {
+                 currentUsers: increment(-1)
+               });
+            } catch(e) {
+               console.error("Error leaving", e);
+            }
             sessionStorage.removeItem(`chat_pwd_${chatId}`);
             router.push('/');
           }}
@@ -184,8 +218,16 @@ export default function ChatPage() {
                 exit={{ opacity: 0, scale: 0.8, filter: 'blur(10px)' }}
                 className={`flex flex-col ${msg.senderId === userId ? 'items-end' : 'items-start'}`}
               >
-                <div className={`relative max-w-[85%] group`}>
-                  <div className={`p-4 rounded-xl shadow-lg border transition-all duration-300 ${
+                <div className={`flex flex-col ${msg.senderId === userId ? 'items-end' : 'items-start'} max-w-[85%] group relative`}>
+                  
+                  {/* Sender Name Label */}
+                  <span className={`text-[10px] uppercase font-bold tracking-wider mb-1 px-1 ${
+                    msg.senderId === userId ? 'text-primary/70' : 'text-slate-500'
+                  }`}>
+                    {msg.senderName || 'Anonymous'}
+                  </span>
+
+                  <div className={`relative p-4 rounded-xl shadow-lg border transition-all duration-300 ${
                     msg.senderId === userId 
                       ? 'bg-primary/10 border-primary/30 text-white rounded-tr-none' 
                       : 'bg-surface-dark border-gray-700/50 text-gray-200 rounded-tl-none'
@@ -210,7 +252,7 @@ export default function ChatPage() {
                   </div>
 
                   {/* Reaction Button - Hidden by default, shows on hover */}
-                  <div className={`absolute -top-4 ${msg.senderId === userId ? 'right-0' : 'left-0'} opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 bg-surface-dark/90 p-1 rounded-lg border border-slate-700 shadow-xl z-10`}>
+                  <div className={`absolute -top-4 ${msg.senderId === userId ? 'right-0' : 'left-0'} opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 bg-surface-dark/90 p-1 rounded-lg border border-slate-700 shadow-xl z-20`}>
                     {['👍', '🔥', '😂', '😮', '😢'].map(emoji => (
                       <button 
                         key={emoji}
@@ -223,7 +265,7 @@ export default function ChatPage() {
                   </div>
 
                   {/* Timer */}
-                  <div className={`absolute ${msg.senderId === userId ? '-left-14' : '-right-14'} top-1 flex flex-col items-center gap-0.5 text-[10px] font-mono font-bold opacity-50 ${
+                  <div className={`absolute ${msg.senderId === userId ? '-left-14' : '-right-14'} top-8 flex flex-col items-center gap-0.5 text-[10px] font-mono font-bold opacity-50 ${
                     msg.timeLeft < 10 ? 'text-red-400' : 'text-primary'
                   }`}>
                     <span className="material-icons-round text-xs">timer</span>
@@ -257,8 +299,8 @@ export default function ChatPage() {
                   sendMessage();
                 }
               }}
-              className="flex-1 bg-transparent border-none text-white placeholder-gray-500 focus:ring-0 text-sm md:text-base p-0"
-              placeholder="Type a self-destructing message..."
+              className="flex-1 bg-transparent border-none text-white placeholder-gray-500 focus:ring-0 text-sm md:text-base p-0 font-mono"
+              placeholder={`Message as ${userName}...`}
               autoComplete="off"
             />
             <button 
