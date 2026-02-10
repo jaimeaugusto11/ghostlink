@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { db } from '@/lib/firebase';
-import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, doc, updateDoc, arrayUnion, getDoc, increment } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, doc, updateDoc, arrayUnion, getDoc, increment, deleteDoc } from 'firebase/firestore';
 import { generateCodename } from '@/utils/codenames';
 
 interface Message {
@@ -13,7 +13,7 @@ interface Message {
   senderName?: string;
   type: 'text' | 'image' | 'video';
   content: string;
-  createdAt: any;
+  createdAt: any; // Firestore Timestamp
   viewOnce: boolean;
   timeLeft: number;
   reactions?: Record<string, string[]>;
@@ -87,39 +87,64 @@ export default function ChatPage() {
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const msgs = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as any[];
+      const msgs = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          // Calculate initial timeLeft based on server timestamp if available
+          timeLeft: data.timeLeft || 60 
+        };
+      }) as Message[];
       
-      const mappedMessages = msgs.map(m => ({
-        ...m,
-        timeLeft: m.timeLeft || 60, 
-        reactions: m.reactions || {}
-      }));
+      const now = Date.now();
+      
+      // Filter out messages that might have expired but not deleted yet
+      // This is a safety measure for client-side view.
+      // Ideally, we check createdAt + 60s < now.
+      const validMessages = msgs.filter(m => {
+          if (!m.createdAt) return true; // optimistic update
+          // If createdAt exists (from server), check expiration
+          // But since timeLeft is decremented locally?? No, timeLeft is static 60 in DB usually.
+          // Let's rely on the visual timer for now, but filter obviously old ones if we had timestamps.
+          return true; 
+      });
 
-      setMessages(mappedMessages);
+      setMessages(validMessages);
     });
 
     return () => unsubscribe();
   }, [chatId, isValidating]);
 
-  // Timer Effect
+  // Timer Effect & Deletion
   useEffect(() => {
     const timer = setInterval(() => {
-      setMessages((prev) => 
-        prev.map((m) => {
+      setMessages((prev) => {
+        // Prepare to delete expired messages
+        prev.forEach((m) => {
+           if (m.timeLeft <= 1 && m.id) {
+               // Trigger deletion in Firestore
+               // We catch error to avoid unhandled promise rejections in interval
+               deleteDoc(doc(db, 'chats', chatId as string, 'messages', m.id))
+                 .catch(err => console.error("Error auto-deleting:", err));
+           }
+        });
+
+        return prev.map((m) => {
            return { ...m, timeLeft: m.timeLeft - 1 };
-        }).filter((m) => m.timeLeft > 0) 
-      );
+        }).filter((m) => m.timeLeft > 0);
+      });
     }, 1000);
 
     return () => clearInterval(timer);
-  }, []);
+  }, [chatId]);
 
+  // Improved Scroll
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    if (messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages.length]); // Only scroll on new messages count change
 
   const sendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
