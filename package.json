@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "node server.js",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
@@ -11,15 +11,13 @@
   "dependencies": {
     "@uploadthing/react": "^7.3.3",
     "bcryptjs": "^2.4.3",
-    "better-sqlite3": "^11.5.0",
     "clsx": "^2.1.1",
+    "firebase": "^12.9.0",
     "framer-motion": "^11.11.17",
     "lucide-react": "^0.460.0",
     "next": "latest",
     "react": "latest",
     "react-dom": "latest",
-    "socket.io": "^4.8.1",
-    "socket.io-client": "^4.8.1",
     "tailwind-merge": "^2.5.4",
     "uploadthing": "^7.7.4",
     "uuid": "^11.0.3"
@@ -27,7 +25,6 @@
   "devDependencies": {
     "@tailwindcss/forms": "^0.5.9",
     "@types/bcryptjs": "^2.4.6",
-    "@types/better-sqlite3": "^7.6.11",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",

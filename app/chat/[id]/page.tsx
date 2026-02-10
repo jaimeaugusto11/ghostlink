@@ -2,15 +2,16 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { io, Socket } from 'socket.io-client';
 import { motion, AnimatePresence } from 'framer-motion';
+import { db } from '@/lib/firebase';
+import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, doc, updateDoc, arrayUnion, getDoc } from 'firebase/firestore';
 
 interface Message {
   id: string;
   senderId: string;
   type: 'text' | 'image' | 'video';
   content: string;
-  expiresAt: number;
+  createdAt: any;
   viewOnce: boolean;
   timeLeft: number;
   reactions?: Record<string, string[]>;
@@ -19,88 +20,81 @@ interface Message {
 export default function ChatPage() {
   const { id: chatId } = useParams();
   const router = useRouter();
-  const [messages, setMessages] = useState<Message[] & { reactions?: Record<string, string[]> }[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
-  const [socket, setSocket] = useState<Socket | null>(null);
   const [userId] = useState(() => Math.random().toString(36).substring(7));
   const [isValidating, setIsValidating] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Access Validation
   useEffect(() => {
-    const pwd = sessionStorage.getItem(`chat_pwd_${chatId}`);
-    if (!pwd) {
-      router.push('/');
-    } else {
-      setIsValidating(false);
-    }
+    const checkAccess = async () => {
+      const pwd = sessionStorage.getItem(`chat_pwd_${chatId}`);
+      if (!pwd) {
+        router.push('/');
+        return;
+      }
+
+      // Verify chat existence mainly
+      try {
+        const chatDoc = await getDoc(doc(db, 'chats', chatId as string));
+        if (!chatDoc.exists()) {
+           alert('Chat not found or expired');
+           router.push('/');
+           return;
+        }
+        setIsValidating(false);
+      } catch (e) {
+        console.error("Access error", e);
+      }
+    };
+    checkAccess();
   }, [chatId, router]);
 
+  // Real-time Messages
   useEffect(() => {
     if (isValidating) return;
 
-    // Explicitly connect to the same host/port to avoid auto-discovery issues
-    const socketUrl = window.location.origin;
-    const newSocket = io(socketUrl, {
-      path: '/socket.io',
-      transports: ['websocket', 'polling']
-    });
-    
-    setSocket(newSocket);
+    // Subscribe to messages
+    const q = query(
+      collection(db, 'chats', chatId as string, 'messages'), 
+      orderBy('createdAt', 'asc')
+    );
 
-    newSocket.on('connect', () => {
-      console.log('Socket connected successfully:', newSocket.id);
-      newSocket.emit('join-chat', chatId);
-    });
-
-    newSocket.on('connect_error', (err: any) => {
-      console.error('Socket connection error:', err);
-    });
-
-    newSocket.on('error', (err: any) => {
-      console.error('Socket business error:', err.message);
-      if (err.message === 'Sessão não encontrada') {
-        alert('Sessão não encontrada ou expirada.');
-        router.push('/');
-      }
-    });
-
-    newSocket.on('new-message', (msg: any) => {
-      console.log('New message received:', msg);
-      setMessages((prev) => {
-        if (prev.some(m => m.id === msg.id)) return prev;
-        return [...prev, { ...msg, timeLeft: 60, reactions: {} }];
-      });
-    });
-
-    newSocket.on('message-reaction', (data: { messageId: string, emoji: string, userId: string }) => {
-      setMessages((prev) => prev.map(m => {
-        if (m.id === data.messageId) {
-          const reactions = { ...(m.reactions || {}) };
-          if (!reactions[data.emoji]) reactions[data.emoji] = [];
-          if (!reactions[data.emoji].includes(data.userId)) {
-            reactions[data.emoji].push(data.userId);
-          }
-          return { ...m, reactions };
-        }
-        return m;
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const msgs = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as any[];
+      
+      // Calculate remaining time manually for display purposes if needed, 
+      // though for simplicity we just load them.
+      // We map the firestore data to our structure.
+      const mappedMessages = msgs.map(m => ({
+        ...m,
+        // Default timeLeft if not present (logic for countdown should be handled carefully)
+        timeLeft: m.timeLeft || 60, 
+        reactions: m.reactions || {}
       }));
+
+      setMessages(mappedMessages);
     });
 
-    newSocket.on('delete-message', (messageId: string) => {
-      setMessages((prev) => prev.filter((m) => m.id !== messageId));
-    });
-
-    return () => {
-      newSocket.disconnect();
-    };
+    return () => unsubscribe();
   }, [chatId, isValidating]);
 
+  // Timer Effect
   useEffect(() => {
     const timer = setInterval(() => {
       setMessages((prev) => 
-        prev.map((m) => ({ ...m, timeLeft: m.timeLeft - 1 }))
-            .filter((m) => m.timeLeft > 0)
+        prev.map((m) => {
+           // Only decrement if it's not a persistent message (if we had that concept)
+           // For now, let's just decrement locally. 
+           // In a real app, 'createdAt' combined with a server function deletes them.
+           return { ...m, timeLeft: m.timeLeft - 1 };
+        }).filter((m) => m.timeLeft > 0) 
+        // Note: Client side filtering for visual effect only. 
+        // Data still exists in Firestore until deleted.
       );
     }, 1000);
 
@@ -111,28 +105,44 @@ export default function ChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const sendMessage = (e?: React.FormEvent) => {
+  const sendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!inputText.trim() || !socket) return;
+    if (!inputText.trim()) return;
 
-    const msg = {
-      id: Math.random().toString(36).substring(7),
-      senderId: userId,
-      type: 'text',
-      content: inputText,
-      expiresAt: Date.now() + 60000,
-      viewOnce: false,
-      timeLeft: 60,
-      reactions: {}
-    };
-
-    socket.emit('send-message', { ...msg, chatId });
-    setInputText('');
+    try {
+      await addDoc(collection(db, 'chats', chatId as string, 'messages'), {
+        senderId: userId,
+        type: 'text',
+        content: inputText,
+        createdAt: serverTimestamp(),
+        viewOnce: false,
+        timeLeft: 60,
+        reactions: {}
+      });
+      setInputText('');
+    } catch (err) {
+      console.error("Error sending message:", err);
+    }
   };
 
-  const addReaction = (messageId: string, emoji: string) => {
-    if (!socket) return;
-    socket.emit('add-reaction', { chatId, messageId, emoji, userId });
+  const addReaction = async (messageId: string, emoji: string) => {
+     try {
+       const msgRef = doc(db, 'chats', chatId as string, 'messages', messageId);
+       // We need to use dot notation for nested updates in map 'reactions.emoji' 
+       // But simpler approach: read, update, write or structure reactions differently.
+       // For now, let's skip complex atomic updates and just ignore if it fails or structure simply.
+       // Ideally: `reactions.${emoji}`: arrayUnion(userId)
+       
+       // Note: Firestore map keys with special chars might be tricky.
+       // Let's rely on a simpler structure or just update the whole map? 
+       // arrayUnion is best.
+       
+       await updateDoc(msgRef, {
+         [`reactions.${emoji}`]: arrayUnion(userId)
+       });
+     } catch (err) {
+       console.error("Error adding reaction:", err);
+     }
   };
 
   if (isValidating) {
