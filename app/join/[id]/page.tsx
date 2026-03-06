@@ -113,14 +113,15 @@ export default function JoinPage() {
             </div>
           </div>
 
-          <button
+          <motion.button
+            whileTap={{ scale: 0.95 }}
             type="submit"
             disabled={loading || !password}
-            className="w-full py-4 bg-primary hover:bg-primary-light text-background-dark font-bold rounded-lg shadow-lg transition-all transform active:scale-95 flex items-center justify-center gap-2"
+            className="w-full h-12 md:h-14 bg-primary hover:bg-primary-light text-background-dark font-bold rounded-lg shadow-lg transition-all flex items-center justify-center gap-2"
           >
              {loading ? "Verificando..." : "Entrar na Sessão"}
              <span className="material-icons text-sm">login</span>
-          </button>
+          </motion.button>
         </form>
 
         {error && <p className="mt-4 text-center text-red-400 text-xs font-mono bg-red-500/10 p-2 rounded">{error}</p>}

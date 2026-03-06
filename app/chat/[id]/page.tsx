@@ -438,7 +438,7 @@ export default function ChatPage() {
             onSubmit={(e) => sendMessage(e)} 
             className="flex items-center gap-3 bg-surface-dark border border-gray-700 rounded-xl p-2 shadow-2xl focus-within:border-primary/50 transition-all"
           >
-            <div className="flex items-center">
+            <div className="flex items-center justify-center p-1">
               <UploadButton
                 endpoint="imageUploader"
                 onClientUploadComplete={(res) => {
@@ -448,11 +448,11 @@ export default function ChatPage() {
                   alert(`Upload error: ${error.message}`);
                 }}
                 appearance={{
-                  button: "ut-uploading:cursor-not-allowed bg-primary hover:bg-green-400 text-background-dark text-[10px] w-10 h-10 rounded-lg material-icons-round after:content-['add'] after:text-2xl after:flex after:items-center after:justify-center transition-all p-0",
+                  button: "ut-uploading:cursor-not-allowed bg-primary/10 hover:bg-primary/20 text-primary w-11 h-11 md:w-12 md:h-12 rounded-xl flex items-center justify-center transition-all p-0 border border-primary/20",
                   allowedContent: "hidden",
                 }}
                 content={{
-                  button: " ",
+                  button: <span className="material-icons-round text-2xl">add</span>,
                 }}
               />
             </div>
@@ -481,13 +481,14 @@ export default function ChatPage() {
               placeholder={`Message as ${userName}...`}
               autoComplete="off"
             />
-            <button 
+            <motion.button 
+              whileTap={{ scale: 0.9 }}
               type="submit" 
               disabled={!inputText.trim()}
-              className="bg-primary disabled:opacity-50 disabled:cursor-not-allowed hover:bg-green-400 text-background-dark w-10 h-10 rounded-lg flex items-center justify-center shadow-lg transform active:scale-95 transition-all"
+              className="bg-primary disabled:opacity-30 disabled:cursor-not-allowed hover:bg-green-400 text-background-dark w-11 h-11 md:w-12 md:h-12 rounded-xl flex items-center justify-center shadow-lg transition-all"
             >
-              <span className="material-icons-round -mr-1">send</span>
-            </button>
+              <span className="material-icons-round text-2xl -mr-1">send</span>
+            </motion.button>
           </form>
           <p className="text-[10px] text-center text-slate-600 uppercase tracking-widest font-mono">Press Enter to send</p>
         </div>

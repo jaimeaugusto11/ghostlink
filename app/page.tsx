@@ -207,20 +207,22 @@ export default function Home() {
                 </div>
               </div>
             </div>
-            <button
+            <motion.button
+              whileTap={{ scale: 0.95 }}
               onClick={() => handleJoin()}
               disabled={loading}
-              className="w-full py-3 px-4 rounded-lg bg-primary hover:bg-primary-light text-background-dark font-bold transition-all flex items-center justify-center group"
+              className="w-full h-12 md:h-14 px-4 rounded-lg bg-primary hover:bg-primary-light text-background-dark font-bold transition-all flex items-center justify-center group"
             >
               <span>{loading ? "Decrypting..." : "Enter Secure Session"}</span>
               <span className="material-icons ml-2 text-sm group-hover:translate-x-1 transition-transform">login</span>
-            </button>
-            <button 
+            </motion.button>
+            <motion.button 
+              whileTap={{ scale: 0.95 }}
               onClick={() => setCreatedChat(null)}
-              className="w-full text-[10px] text-slate-500 hover:text-white transition-colors"
+              className="w-full text-[10px] text-slate-500 hover:text-white transition-colors py-2"
             >
               Back to entry screen
-            </button>
+            </motion.button>
           </motion.div>
         ) : (
           <form onSubmit={(e) => handleJoin(e)} className="space-y-6">
@@ -269,14 +271,15 @@ export default function Home() {
               </div>
             </div>
 
-            <button
+            <motion.button
+              whileTap={{ scale: 0.95 }}
               type="submit"
               disabled={loading}
-              className="w-full py-4 px-6 rounded-lg bg-accent-purple hover:bg-purple-400 focus:ring-4 focus:ring-purple-500/30 text-white font-semibold shadow-lg shadow-purple-900/20 transition-all duration-200 transform hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center group"
+              className="w-full h-12 md:h-14 px-6 rounded-lg bg-accent-purple hover:bg-purple-400 focus:ring-4 focus:ring-purple-500/30 text-white font-semibold shadow-lg shadow-purple-900/20 transition-all duration-200 transform flex items-center justify-center group"
             >
               <span>{loading ? "Decrypting..." : "Join Secure Chat"}</span>
               <span className="material-icons ml-2 text-sm group-hover:translate-x-1 transition-transform">arrow_forward</span>
-            </button>
+            </motion.button>
           </form>
         )}
 
@@ -329,14 +332,15 @@ export default function Home() {
               </div>
             </div>
 
-            <button 
+            <motion.button 
+              whileTap={{ scale: 0.95 }}
               onClick={handleCreateChat}
               disabled={loading}
-              className="w-full py-3 px-4 rounded-lg border border-primary/30 bg-primary/5 hover:bg-primary/10 text-primary text-xs font-bold transition-all flex items-center justify-center gap-2"
+              className="w-full h-12 md:h-14 px-4 rounded-lg border border-primary/30 bg-primary/5 hover:bg-primary/10 text-primary text-xs font-bold transition-all flex items-center justify-center gap-2"
             >
               <span className="material-icons text-sm">add_box</span>
               {loading ? "Creating..." : "Create Custom Secure Session"}
-            </button>
+            </motion.button>
             <p className="text-xs text-slate-500 leading-relaxed max-w-[260px] mx-auto">
               No accounts, no logs. Enter the key or share the private link.
             </p>
