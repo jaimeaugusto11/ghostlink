@@ -299,37 +299,37 @@ export default function ChatPage() {
         </div>
       )}
       {/* Header */}
-      <header className="glass-panel z-50 px-6 py-4 flex items-center justify-between shadow-lg relative">
-        <div className="flex items-center gap-3">
-          <span className="material-icons-round text-primary text-3xl animate-pulse-slow">leak_add</span>
+      <header className="glass-panel z-50 px-4 md:px-6 py-3 flex items-center justify-between shadow-xl relative backdrop-blur-xl border-b border-primary/10">
+        <div className="flex items-center gap-2 md:gap-3">
+          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-primary/5 border border-primary/20">
+            <span className="material-icons-round text-primary text-2xl animate-pulse-slow">leak_add</span>
+          </div>
           <div>
-            <h1 className="font-bold text-lg tracking-tight leading-none text-white">GhostLink</h1>
-            <div className="flex items-center gap-2">
-              <p className="text-xs text-primary/60 font-mono tracking-wider">#{chatId?.toString().substring(0, 8).toUpperCase()}</p>
-              <span className="text-xs text-slate-500">•</span>
-              <p className="text-xs text-primary font-bold">{userName}</p>
+            <h1 className="font-bold text-base md:text-lg tracking-tight leading-none text-white">GhostLink</h1>
+            <div className="flex items-center gap-1.5 mt-1">
+              <p className="text-[10px] text-primary/50 font-mono tracking-tighter">#{chatId?.toString().substring(0, 6).toUpperCase()}</p>
+              <span className="w-1 h-1 rounded-full bg-slate-700"></span>
+              <p className="text-[10px] text-primary font-bold">{userName}</p>
             </div>
           </div>
         </div>
-        <button 
+        
+        <motion.button 
+          whileTap={{ scale: 0.9 }}
           onClick={async () => {
             try {
-               // Decrement user count
                const chatRef = doc(db, 'chats', chatId as string);
-               await updateDoc(chatRef, {
-                 currentUsers: increment(-1)
-               });
-            } catch(e) {
-               console.error("Error leaving", e);
-            }
+               await updateDoc(chatRef, { currentUsers: increment(-1) });
+            } catch(e) { console.error("Error leaving", e); }
             sessionStorage.removeItem(`chat_pwd_${chatId}`);
             router.push('/');
           }}
-          className="flex items-center gap-2 text-red-400 hover:text-red-300 transition-colors text-sm font-medium border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 px-4 py-2 rounded-lg"
+          className="flex items-center justify-center w-10 h-10 md:w-auto md:px-4 md:py-2 text-red-500 hover:text-red-400 transition-all border border-red-500/20 bg-red-500/5 hover:bg-red-500/10 rounded-xl"
+          title="Leave Chat"
         >
-          <span className="material-icons-round text-sm">logout</span>
-          Leave Chat
-        </button>
+          <span className="material-icons-round text-xl">logout</span>
+          <span className="hidden md:inline ml-2 text-sm font-medium">Leave</span>
+        </motion.button>
       </header>
 
       {/* Chat Area */}
@@ -432,13 +432,10 @@ export default function ChatPage() {
       </main>
 
       {/* Footer */}
-      <footer className="z-50 px-4 md:px-8 py-6 relative">
-        <div className="max-w-4xl mx-auto flex flex-col gap-2">
-          <form 
-            onSubmit={(e) => sendMessage(e)} 
-            className="flex items-center gap-3 bg-surface-dark border border-gray-700 rounded-xl p-2 shadow-2xl focus-within:border-primary/50 transition-all"
-          >
-            <div className="flex items-center justify-center p-1">
+      <footer className="z-50 px-3 md:px-6 pb-4 md:pb-8 pt-2 relative mobile-safe-bottom">
+        <div className="max-w-4xl mx-auto">
+          <div className="glass-panel rounded-2xl p-1.5 flex items-center gap-2 shadow-2xl border border-white/5">
+            <div className="flex items-center justify-center">
               <UploadButton
                 endpoint="imageUploader"
                 onClientUploadComplete={(res) => {
@@ -448,49 +445,53 @@ export default function ChatPage() {
                   alert(`Upload error: ${error.message}`);
                 }}
                 appearance={{
-                  button: "ut-uploading:cursor-not-allowed bg-primary/10 hover:bg-primary/20 text-primary w-11 h-11 md:w-12 md:h-12 rounded-xl flex items-center justify-center transition-all p-0 border border-primary/20",
+                  button: "ut-uploading:cursor-not-allowed bg-white/5 hover:bg-white/10 text-primary w-10 h-10 md:w-11 md:h-11 rounded-xl flex items-center justify-center transition-all p-0 border border-white/10 shadow-inner",
                   allowedContent: "hidden",
                 }}
                 content={{
-                  button: <span className="material-icons-round text-2xl">add</span>,
+                  button: <span className="material-icons-round text-2xl">add_photo_alternate</span>,
                 }}
               />
             </div>
-            <div className="w-[1px] h-6 bg-gray-700"></div>
-            <input
-              value={inputText}
-              onChange={(e) => {
-                setInputText(e.target.value);
-                
-                // Handle typing status
-                if (!isTyping) setIsTyping(true);
-                if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-                typingTimeoutRef.current = setTimeout(() => {
-                  setIsTyping(false);
-                }, 3000);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  sendMessage();
-                  setIsTyping(false);
-                  if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-                }
-              }}
-              className="flex-1 bg-transparent border-none text-white placeholder-gray-500 focus:ring-0 text-sm md:text-base p-0 font-mono"
-              placeholder={`Message as ${userName}...`}
-              autoComplete="off"
-            />
-            <motion.button 
-              whileTap={{ scale: 0.9 }}
-              type="submit" 
-              disabled={!inputText.trim()}
-              className="bg-primary disabled:opacity-30 disabled:cursor-not-allowed hover:bg-green-400 text-background-dark w-11 h-11 md:w-12 md:h-12 rounded-xl flex items-center justify-center shadow-lg transition-all"
+            
+            <form 
+              onSubmit={(e) => sendMessage(e)} 
+              className="flex-1 flex items-center gap-2 bg-black/40 rounded-xl px-3 py-1 border border-white/5 focus-within:border-primary/30 transition-all"
             >
-              <span className="material-icons-round text-2xl -mr-1">send</span>
-            </motion.button>
-          </form>
-          <p className="text-[10px] text-center text-slate-600 uppercase tracking-widest font-mono">Press Enter to send</p>
+              <input
+                value={inputText}
+                onChange={(e) => {
+                  setInputText(e.target.value);
+                  if (!isTyping) setIsTyping(true);
+                  if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+                  typingTimeoutRef.current = setTimeout(() => setIsTyping(false), 3000);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                    setIsTyping(false);
+                    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+                  }
+                }}
+                className="flex-1 bg-transparent border-none text-white placeholder-slate-500 focus:ring-0 text-sm md:text-base py-2 font-sans"
+                placeholder="Type a message..."
+                autoComplete="off"
+              />
+              
+              <motion.button 
+                whileTap={{ scale: 0.9 }}
+                type="submit" 
+                disabled={!inputText.trim()}
+                className="bg-primary hover:bg-primary-light disabled:bg-slate-800 disabled:opacity-30 text-background-dark w-10 h-10 md:w-11 md:h-11 rounded-xl flex items-center justify-center shadow-lg transition-all"
+              >
+                <span className="material-icons-round text-2xl">send</span>
+              </motion.button>
+            </form>
+          </div>
+          <p className="text-[9px] text-center text-slate-600 uppercase tracking-[0.2em] font-mono mt-2 opacity-50">
+            Secure Encrypted Node
+          </p>
         </div>
       </footer>
     </div>
