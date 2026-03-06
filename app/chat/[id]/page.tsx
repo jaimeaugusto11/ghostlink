@@ -4,8 +4,10 @@ import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { db } from '@/lib/firebase';
-import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, doc, updateDoc, arrayUnion, getDoc, increment, deleteDoc } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, doc, updateDoc, arrayUnion, getDoc, increment, deleteDoc, setDoc } from 'firebase/firestore';
 import { generateCodename } from '@/utils/codenames';
+import { UploadButton } from '@/utils/uploadthing';
+import "@uploadthing/react/styles.css";
 
 interface Message {
   id: string;
@@ -24,6 +26,9 @@ export default function ChatPage() {
   const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+  const [typingUsers, setTypingUsers] = useState<{id: string, name: string}[]>([]);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Persistent User Identity (Session Storage or Generated)
   const [userId] = useState(() => {
@@ -134,6 +139,42 @@ export default function ChatPage() {
     return () => unsubscribe();
   }, [chatId, isValidating]);
 
+  // Typing Status Sync
+  useEffect(() => {
+    if (isValidating) return;
+
+    const typingRef = doc(db, 'chats', chatId as string, 'typing', userId);
+
+    if (isTyping) {
+      setDoc(typingRef, {
+        name: userName,
+        updatedAt: serverTimestamp()
+      }).catch(err => console.error("Error setting typing status:", err));
+    } else {
+      deleteDoc(typingRef).catch(err => console.error("Error clearing typing status:", err));
+    }
+
+    // Cleanup on unmount
+    return () => {
+      deleteDoc(typingRef).catch(() => {});
+    };
+  }, [isTyping, chatId, userId, userName, isValidating]);
+
+  // Listen for other typing users
+  useEffect(() => {
+    if (isValidating) return;
+
+    const q = collection(db, 'chats', chatId as string, 'typing');
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const users = snapshot.docs
+        .filter(doc => doc.id !== userId)
+        .map(doc => ({ id: doc.id, name: doc.data().name }));
+      setTypingUsers(users);
+    });
+
+    return () => unsubscribe();
+  }, [chatId, userId, isValidating]);
+
   // Timer Effect & Deletion
   useEffect(() => {
     const timer = setInterval(() => {
@@ -142,7 +183,6 @@ export default function ChatPage() {
         prev.forEach((m) => {
            if (m.timeLeft <= 1 && m.id) {
                // Trigger deletion in Firestore
-               // We catch error to avoid unhandled promise rejections in interval
                deleteDoc(doc(db, 'chats', chatId as string, 'messages', m.id))
                  .catch(err => console.error("Error auto-deleting:", err));
            }
@@ -182,6 +222,23 @@ export default function ChatPage() {
       setInputText('');
     } catch (err) {
       console.error("Error sending message:", err);
+    }
+  };
+
+  const sendImageMessage = async (url: string) => {
+    try {
+      await addDoc(collection(db, 'chats', chatId as string, 'messages'), {
+        senderId: userId,
+        senderName: userName,
+        type: 'image',
+        content: url,
+        createdAt: serverTimestamp(),
+        viewOnce: false,
+        timeLeft: 900,
+        reactions: {}
+      });
+    } catch (err) {
+      console.error("Error sending image message:", err);
     }
   };
 
@@ -323,6 +380,27 @@ export default function ChatPage() {
               </motion.div>
             ))}
           </AnimatePresence>
+          
+          {/* Typing Indicator UI */}
+          <div className="flex flex-col gap-1 min-h-[1.5rem]">
+            {typingUsers.map(user => (
+              <motion.div
+                key={user.id}
+                initial={{ opacity: 0, y: 5 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className="flex items-center gap-2 text-primary/60 text-[10px] font-mono"
+              >
+                <div className="flex gap-0.5">
+                  <span className="dot animate-bounce">.</span>
+                  <span className="dot animate-bounce [animation-delay:0.2s]">.</span>
+                  <span className="dot animate-bounce [animation-delay:0.4s]">.</span>
+                </div>
+                <span>{user.name} is typing...</span>
+              </motion.div>
+            ))}
+          </div>
+
           <div ref={messagesEndRef} />
         </div>
       </main>
@@ -334,17 +412,43 @@ export default function ChatPage() {
             onSubmit={(e) => sendMessage(e)} 
             className="flex items-center gap-3 bg-surface-dark border border-gray-700 rounded-xl p-2 shadow-2xl focus-within:border-primary/50 transition-all"
           >
-            <button type="button" className="w-10 h-10 flex items-center justify-center rounded-lg text-gray-400 hover:text-white group">
-              <span className="material-icons-round group-hover:rotate-90 transition-transform">add</span>
-            </button>
+            <div className="flex items-center">
+              <UploadButton
+                endpoint="imageUploader"
+                onClientUploadComplete={(res) => {
+                  res.forEach(file => sendImageMessage(file.url));
+                }}
+                onUploadError={(error: Error) => {
+                  alert(`Upload error: ${error.message}`);
+                }}
+                appearance={{
+                  button: "ut-uploading:cursor-not-allowed bg-primary hover:bg-green-400 text-background-dark text-[10px] w-10 h-10 rounded-lg material-icons-round after:content-['add'] after:text-2xl after:flex after:items-center after:justify-center transition-all p-0",
+                  allowedContent: "hidden",
+                }}
+                content={{
+                  button: " ",
+                }}
+              />
+            </div>
             <div className="w-[1px] h-6 bg-gray-700"></div>
             <input
               value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
+              onChange={(e) => {
+                setInputText(e.target.value);
+                
+                // Handle typing status
+                if (!isTyping) setIsTyping(true);
+                if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+                typingTimeoutRef.current = setTimeout(() => {
+                  setIsTyping(false);
+                }, 3000);
+              }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault();
                   sendMessage();
+                  setIsTyping(false);
+                  if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
                 }
               }}
               className="flex-1 bg-transparent border-none text-white placeholder-gray-500 focus:ring-0 text-sm md:text-base p-0 font-mono"
