@@ -288,7 +288,7 @@ export default function ChatPage() {
   }
 
   return (
-    <div className={`flex flex-col h-screen overflow-hidden bg-deep-void no-print secure-content ${!isWindowFocused ? 'blur-md' : ''}`}>
+    <div className={`flex flex-col h-[100svh] overflow-hidden bg-deep-void no-print secure-content ${!isWindowFocused ? 'blur-md' : ''}`}>
       {!isWindowFocused && (
         <div className="no-screenshot-overlay">
           <div className="text-center p-8 bg-surface-dark rounded-2xl border border-primary/20 shadow-2xl">
@@ -339,12 +339,12 @@ export default function ChatPage() {
             {messages.map((msg) => (
               <motion.div
                 key={msg.id}
-                initial={{ opacity: 0, x: msg.senderId === userId ? 20 : -20 }}
+                initial={{ opacity: 0, x: msg.senderId === userId ? 10 : -10 }}
                 animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, scale: 0.8, filter: 'blur(10px)' }}
+                exit={{ opacity: 0, scale: 0.9, filter: 'blur(10px)' }}
                 className={`flex flex-col ${msg.senderId === userId ? 'items-end' : 'items-start'}`}
               >
-                <div className={`flex flex-col ${msg.senderId === userId ? 'items-end' : 'items-start'} max-w-[85%] group relative`}>
+                <div className={`flex flex-col ${msg.senderId === userId ? 'items-end' : 'items-start'} max-w-[90%] md:max-w-[75%] group relative`}>
                   
                   {/* Sender Name Label */}
                   <span className={`text-[10px] uppercase font-bold tracking-wider mb-1 px-1 ${
@@ -364,10 +364,10 @@ export default function ChatPage() {
                         alt="Shared content" 
                         onContextMenu={(e) => e.preventDefault()}
                         draggable={false}
-                        className="rounded-lg max-h-60 max-w-full object-cover select-none pointer-events-none" 
+                        className="rounded-lg max-h-[50svh] md:max-h-96 w-auto max-w-full object-contain select-none pointer-events-none" 
                       />
                     ) : (
-                      <p className="text-sm md:text-base leading-relaxed break-words">{msg.content}</p>
+                      <p className="text-xs md:text-base leading-relaxed break-words">{msg.content}</p>
                     )}
                     
                     {/* Reactions Display */}

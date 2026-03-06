@@ -123,7 +123,7 @@ export default function Home() {
   };
 
   return (
-    <main className="relative z-10 w-full max-w-md mx-auto min-h-screen flex flex-col items-center justify-center p-4 overflow-hidden">
+    <main className="relative z-10 w-full max-w-lg mx-auto min-h-[100svh] flex flex-col items-center justify-center p-4 md:p-6 overflow-hidden">
       {/* Decorative background elements */}
       <div className="absolute top-0 left-0 w-full h-full scanlines opacity-20 pointer-events-none z-0"></div>
       <div className="absolute -top-40 -right-40 w-96 h-96 bg-primary/5 rounded-full blur-3xl pointer-events-none z-0"></div>
@@ -237,7 +237,7 @@ export default function Home() {
                     value={sessionKey}
                     onChange={(e) => setSessionKey(e.target.value)}
                     placeholder="Enter Session ID"
-                    className="block w-full pl-11 pr-4 py-4 bg-background-dark border border-slate-700/50 rounded-lg text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all font-mono text-sm tracking-tight shadow-inner"
+                    className="block w-full pl-11 pr-4 py-3 md:py-4 bg-background-dark border border-slate-700/50 rounded-lg text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all font-mono text-sm tracking-tight shadow-inner"
                     autoComplete="off"
                   />
                 </div>
@@ -255,7 +255,7 @@ export default function Home() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Enter Passkey"
-                    className="block w-full pl-11 pr-12 py-4 bg-background-dark border border-slate-700/50 rounded-lg text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all font-mono text-sm tracking-tight shadow-inner"
+                    className="block w-full pl-11 pr-12 py-3 md:py-4 bg-background-dark border border-slate-700/50 rounded-lg text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all font-mono text-sm tracking-tight shadow-inner"
                     autoComplete="off"
                   />
                   <button

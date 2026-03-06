@@ -75,7 +75,7 @@ export default function JoinPage() {
   }
 
   return (
-    <main className="min-h-screen bg-deep-void flex items-center justify-center p-4">
+    <main className="min-h-[100svh] bg-deep-void flex items-center justify-center p-4">
       <div className="absolute top-0 left-0 w-full h-full scanlines opacity-20 pointer-events-none z-0"></div>
       
       <motion.div 
@@ -101,7 +101,7 @@ export default function JoinPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Insira a Senha"
                 autoFocus
-                className="w-full bg-background-dark border border-slate-700/50 rounded-lg px-4 py-4 text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all font-mono text-sm"
+                className="w-full bg-background-dark border border-slate-700/50 rounded-lg px-4 py-3 md:py-4 text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all font-mono text-sm"
               />
               <button
                 type="button"
