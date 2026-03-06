@@ -43,12 +43,7 @@ export default function RootLayout({
         />
       </head>
       <body className={`${spaceGrotesk.variable} antialiased`}>
-      {/* Chat Area */}
-      <main className="flex-1 overflow-y-auto p-3 md:p-6 relative hide-scrollbar">
-        <div className="max-w-4xl mx-auto flex flex-col gap-4 md:gap-6">
         {children}
-        </div>
-      </main>
       </body>
     </html>
   );
