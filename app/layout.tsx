@@ -10,6 +10,14 @@ const spaceGrotesk = Space_Grotesk({
 export const metadata: Metadata = {
   title: "GhostLink | Ultra-Private Ephemeral Chat",
   description: "Anonymous, encrypted, and self-destructing communication.",
+  manifest: "/manifest.webmanifest",
+  themeColor: "#020403",
+  viewport: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "GhostLink",
+  },
 };
 
 export default function RootLayout({
@@ -22,6 +30,17 @@ export default function RootLayout({
       <head>
         <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
         <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                  navigator.serviceWorker.register('/sw.js');
+                });
+              }
+            `,
+          }}
+        />
       </head>
       <body className={`${spaceGrotesk.variable} antialiased`}>
         {children}
