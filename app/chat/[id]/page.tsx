@@ -105,7 +105,7 @@ export default function ChatPage() {
           ) {
             new Notification(`GhostLink: ${data.senderName || 'Anonymous'}`, {
               body: data.type === 'text' ? data.content : 'Shared an image/video',
-              icon: '/favicon.ico' // You can use a specific icon if available
+              icon: '/favicon.ico'
             });
           }
         }
@@ -113,11 +113,18 @@ export default function ChatPage() {
 
       const msgs = snapshot.docs.map(doc => {
         const data = doc.data();
+        
+        // Calculate timeLeft based on server timestamp if available
+        let timeLeft = 900; // 15 minutes
+        if (data.createdAt) {
+          const secondsElapsed = Math.floor((Date.now() - data.createdAt.toMillis()) / 1000);
+          timeLeft = Math.max(0, 900 - secondsElapsed);
+        }
+
         return {
           id: doc.id,
           ...data,
-          // Calculate initial timeLeft based on server timestamp if available
-          timeLeft: data.timeLeft || 60 
+          timeLeft
         };
       }) as Message[];
       
@@ -169,7 +176,7 @@ export default function ChatPage() {
         content: inputText,
         createdAt: serverTimestamp(),
         viewOnce: false,
-        timeLeft: 60,
+        timeLeft: 900,
         reactions: {}
       });
       setInputText('');
@@ -200,6 +207,12 @@ export default function ChatPage() {
      } catch (err) {
        console.error("Error adding reaction:", err);
      }
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   if (isValidating) {
@@ -300,12 +313,11 @@ export default function ChatPage() {
                     ))}
                   </div>
 
-                  {/* Timer */}
                   <div className={`absolute ${msg.senderId === userId ? '-left-14' : '-right-14'} top-8 flex flex-col items-center gap-0.5 text-[10px] font-mono font-bold opacity-50 ${
-                    msg.timeLeft < 10 ? 'text-red-400' : 'text-primary'
+                    msg.timeLeft < 60 ? 'text-red-400' : 'text-primary'
                   }`}>
                     <span className="material-icons-round text-xs">timer</span>
-                    {msg.timeLeft}s
+                    {formatTime(msg.timeLeft)}
                   </div>
                 </div>
               </motion.div>
