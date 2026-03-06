@@ -220,6 +220,11 @@ export default function ChatPage() {
     if (!inputText.trim()) return;
 
     try {
+      // Haptic Feedback
+      if (typeof window !== 'undefined' && navigator.vibrate) {
+        navigator.vibrate(10);
+      }
+      
       await addDoc(collection(db, 'chats', chatId as string, 'messages'), {
         senderId: userId,
         senderName: userName,
@@ -288,7 +293,7 @@ export default function ChatPage() {
   }
 
   return (
-    <div className={`flex flex-col h-[100svh] overflow-hidden bg-deep-void no-print secure-content ${!isWindowFocused ? 'blur-md' : ''}`}>
+    <div className={`flex flex-col h-[100dvh] overflow-hidden bg-deep-void no-print secure-content ${!isWindowFocused ? 'blur-md' : ''}`}>
       {!isWindowFocused && (
         <div className="no-screenshot-overlay">
           <div className="text-center p-8 bg-surface-dark rounded-2xl border border-primary/20 shadow-2xl">
@@ -473,6 +478,13 @@ export default function ChatPage() {
                     setIsTyping(false);
                     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
                   }
+                }}
+                onFocus={() => {
+                  setTimeout(() => {
+                    if (messagesEndRef.current) {
+                      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+                    }
+                  }, 300);
                 }}
                 className="flex-1 bg-transparent border-none text-white placeholder-slate-500 focus:ring-0 text-sm md:text-base py-2 font-sans"
                 placeholder="Type a message..."
