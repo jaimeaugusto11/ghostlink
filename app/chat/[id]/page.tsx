@@ -51,7 +51,7 @@ export default function ChatPage() {
   const [isValidating, setIsValidating] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Access Validation
+  // Access Validation & Notification Permission
   useEffect(() => {
     const checkAccess = async () => {
       const pwd = sessionStorage.getItem(`chat_pwd_${chatId}`);
@@ -69,6 +69,13 @@ export default function ChatPage() {
            return;
         }
         setIsValidating(false);
+
+        // Request Notification Permission
+        if (typeof window !== 'undefined' && 'Notification' in window) {
+          if (Notification.permission === 'default') {
+            await Notification.requestPermission();
+          }
+        }
       } catch (e) {
         console.error("Access error", e);
       }
@@ -87,6 +94,23 @@ export default function ChatPage() {
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === "added") {
+          const data = change.doc.data();
+          // Notify if tab is hidden and message is not from current user
+          if (
+            document.hidden && 
+            data.senderId !== userId && 
+            data.createdAt // Ensure it's not the local optimistic addition
+          ) {
+            new Notification(`GhostLink: ${data.senderName || 'Anonymous'}`, {
+              body: data.type === 'text' ? data.content : 'Shared an image/video',
+              icon: '/favicon.ico' // You can use a specific icon if available
+            });
+          }
+        }
+      });
+
       const msgs = snapshot.docs.map(doc => {
         const data = doc.data();
         return {
@@ -97,20 +121,7 @@ export default function ChatPage() {
         };
       }) as Message[];
       
-      const now = Date.now();
-      
-      // Filter out messages that might have expired but not deleted yet
-      // This is a safety measure for client-side view.
-      // Ideally, we check createdAt + 60s < now.
-      const validMessages = msgs.filter(m => {
-          if (!m.createdAt) return true; // optimistic update
-          // If createdAt exists (from server), check expiration
-          // But since timeLeft is decremented locally?? No, timeLeft is static 60 in DB usually.
-          // Let's rely on the visual timer for now, but filter obviously old ones if we had timestamps.
-          return true; 
-      });
-
-      setMessages(validMessages);
+      setMessages(msgs);
     });
 
     return () => unsubscribe();
