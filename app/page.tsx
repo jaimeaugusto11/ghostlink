@@ -13,6 +13,13 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [createdChat, setCreatedChat] = useState<{id: string, password: string} | null>(null);
+  
+  // Custom Durations
+  const [chatDuration, setChatDuration] = useState('24'); // Default 24h
+  const [chatUnit, setChatUnit] = useState('hours');
+  const [msgDuration, setMsgDuration] = useState('15'); // Default 15m
+  const [msgUnit, setMsgUnit] = useState('minutes');
+
   const router = useRouter();
 
   const handleJoin = async (e?: React.FormEvent) => {
@@ -84,13 +91,24 @@ export default function Home() {
     setCreatedChat(null);
     const generatedPassword = Math.random().toString(36).substring(7);
     
+    // Calculate Expiry
+    const chatDur = parseInt(chatDuration) || 24;
+    const chatExpiryMs = chatUnit === 'days' ? chatDur * 24 * 60 * 60 * 1000 : chatDur * 60 * 60 * 1000;
+    
+    // Calculate Message Life in seconds
+    const msgDur = parseInt(msgDuration) || 15;
+    const msgExpirySecs = msgUnit === 'days' ? msgDur * 24 * 60 * 60 : 
+                           msgUnit === 'hours' ? msgDur * 60 * 60 : 
+                           msgDur * 60;
+
     try {
       const chatRef = await addDoc(collection(db, 'chats'), {
         password: generatedPassword,
         maxUsers: 10,
         currentUsers: 0,
         createdAt: serverTimestamp(),
-        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours from now
+        expiresAt: new Date(Date.now() + chatExpiryMs),
+        messageExpirySeconds: msgExpirySecs
       });
 
       setCreatedChat({ id: chatRef.id, password: generatedPassword });
@@ -149,27 +167,43 @@ export default function Home() {
             </div>
             <div className="space-y-3">
               <div>
-                <p className="text-[10px] text-slate-500 uppercase tracking-tighter mb-1">Session ID</p>
+                <p className="text-[10px] text-slate-500 uppercase tracking-tighter mb-1">Shareable Link</p>
                 <div className="flex items-center justify-between bg-background-dark/50 p-2 rounded border border-slate-800">
-                  <code className="text-sm font-mono text-white truncate mr-2">{createdChat.id}</code>
+                  <code className="text-sm font-mono text-white truncate mr-2">
+                    {typeof window !== 'undefined' ? `${window.location.origin}/join/${createdChat.id}` : ''}
+                  </code>
                   <button 
-                    onClick={() => navigator.clipboard.writeText(createdChat.id)}
+                    onClick={() => navigator.clipboard.writeText(`${window.location.origin}/join/${createdChat.id}`)}
                     className="text-slate-500 hover:text-primary transition-colors"
                   >
                     <span className="material-icons text-sm">content_copy</span>
                   </button>
                 </div>
               </div>
-              <div>
-                <p className="text-[10px] text-slate-500 uppercase tracking-tighter mb-1">Passkey</p>
-                <div className="flex items-center justify-between bg-background-dark/50 p-2 rounded border border-slate-800">
-                  <code className="text-sm font-mono text-white truncate mr-2">{createdChat.password}</code>
-                  <button 
-                    onClick={() => navigator.clipboard.writeText(createdChat.password)}
-                    className="text-slate-500 hover:text-primary transition-colors"
-                  >
-                    <span className="material-icons text-sm">content_copy</span>
-                  </button>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <p className="text-[10px] text-slate-500 uppercase tracking-tighter mb-1">Session ID</p>
+                  <div className="flex items-center justify-between bg-background-dark/50 p-2 rounded border border-slate-800">
+                    <code className="text-xs font-mono text-white truncate mr-1">{createdChat.id}</code>
+                    <button 
+                      onClick={() => navigator.clipboard.writeText(createdChat.id)}
+                      className="text-slate-500 hover:text-primary transition-colors"
+                    >
+                      <span className="material-icons text-[12px]">content_copy</span>
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[10px] text-slate-500 uppercase tracking-tighter mb-1">Passkey</p>
+                  <div className="flex items-center justify-between bg-background-dark/50 p-2 rounded border border-slate-800">
+                    <code className="text-xs font-mono text-white truncate mr-1">{createdChat.password}</code>
+                    <button 
+                      onClick={() => navigator.clipboard.writeText(createdChat.password)}
+                      className="text-slate-500 hover:text-primary transition-colors"
+                    >
+                      <span className="material-icons text-[12px]">content_copy</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -252,15 +286,59 @@ export default function Home() {
 
         {/* Footer / Subtext */}
         {!createdChat && (
-          <div className="mt-8 text-center border-t border-slate-700/30 pt-6">
+          <div className="mt-8 text-center border-t border-slate-700/30 pt-6 space-y-6">
+            <div className="grid grid-cols-2 gap-4 text-left">
+              <div className="space-y-1">
+                <label className="text-[10px] uppercase font-bold text-slate-500">Chat Duration</label>
+                <div className="flex gap-1">
+                  <input 
+                    type="number" 
+                    value={chatDuration} 
+                    onChange={e => setChatDuration(e.target.value)}
+                    className="w-full bg-background-dark/50 border border-slate-800 rounded px-2 py-1 text-xs text-white"
+                  />
+                  <select 
+                    value={chatUnit} 
+                    onChange={e => setChatUnit(e.target.value)}
+                    className="bg-background-dark/50 border border-slate-800 rounded px-1 py-1 text-[10px] text-slate-400"
+                  >
+                    <option value="hours">H</option>
+                    <option value="days">D</option>
+                  </select>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] uppercase font-bold text-slate-500">Msg Duration</label>
+                <div className="flex gap-1">
+                  <input 
+                    type="number" 
+                    value={msgDuration} 
+                    onChange={e => setMsgDuration(e.target.value)}
+                    className="w-full bg-background-dark/50 border border-slate-800 rounded px-2 py-1 text-xs text-white"
+                  />
+                  <select 
+                    value={msgUnit} 
+                    onChange={e => setMsgUnit(e.target.value)}
+                    className="bg-background-dark/50 border border-slate-800 rounded px-1 py-1 text-[10px] text-slate-400"
+                  >
+                    <option value="minutes">M</option>
+                    <option value="hours">H</option>
+                    <option value="days">D</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
             <button 
               onClick={handleCreateChat}
-              className="text-xs text-primary hover:text-white transition-colors mb-4 block mx-auto underline"
+              disabled={loading}
+              className="w-full py-3 px-4 rounded-lg border border-primary/30 bg-primary/5 hover:bg-primary/10 text-primary text-xs font-bold transition-all flex items-center justify-center gap-2"
             >
-              Create new secure session
+              <span className="material-icons text-sm">add_box</span>
+              {loading ? "Creating..." : "Create Custom Secure Session"}
             </button>
             <p className="text-xs text-slate-500 leading-relaxed max-w-[260px] mx-auto">
-              No accounts, no logs. Enter the key to access this temporary session.
+              No accounts, no logs. Enter the key or share the private link.
             </p>
           </div>
         )}

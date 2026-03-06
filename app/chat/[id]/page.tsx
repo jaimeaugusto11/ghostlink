@@ -29,6 +29,8 @@ export default function ChatPage() {
   const [isTyping, setIsTyping] = useState(false);
   const [typingUsers, setTypingUsers] = useState<{id: string, name: string}[]>([]);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [msgExpiry, setMsgExpiry] = useState(900);
+  const [isWindowFocused, setIsWindowFocused] = useState(true);
   
   // Persistent User Identity (Session Storage or Generated)
   const [userId] = useState(() => {
@@ -56,8 +58,14 @@ export default function ChatPage() {
   const [isValidating, setIsValidating] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Access Validation & Notification Permission
+  // Access Validation & Security Listeners
   useEffect(() => {
+    const handleFocus = () => setIsWindowFocused(true);
+    const handleBlur = () => setIsWindowFocused(false);
+    
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('blur', handleBlur);
+    
     const checkAccess = async () => {
       const pwd = sessionStorage.getItem(`chat_pwd_${chatId}`);
       if (!pwd) {
@@ -68,7 +76,10 @@ export default function ChatPage() {
       // Verify chat existence mainly
       try {
         const chatDoc = await getDoc(doc(db, 'chats', chatId as string));
-        if (!chatDoc.exists()) {
+        if (chatDoc.exists()) {
+           const data = chatDoc.data();
+           setMsgExpiry(data.messageExpirySeconds || 900);
+        } else {
            alert('Chat not found or expired');
            router.push('/');
            return;
@@ -120,10 +131,10 @@ export default function ChatPage() {
         const data = doc.data();
         
         // Calculate timeLeft based on server timestamp if available
-        let timeLeft = 900; // 15 minutes
+        let timeLeft = msgExpiry;
         if (data.createdAt) {
           const secondsElapsed = Math.floor((Date.now() - data.createdAt.toMillis()) / 1000);
-          timeLeft = Math.max(0, 900 - secondsElapsed);
+          timeLeft = Math.max(0, msgExpiry - secondsElapsed);
         }
 
         return {
@@ -216,7 +227,7 @@ export default function ChatPage() {
         content: inputText,
         createdAt: serverTimestamp(),
         viewOnce: false,
-        timeLeft: 900,
+        timeLeft: msgExpiry,
         reactions: {}
       });
       setInputText('');
@@ -234,7 +245,7 @@ export default function ChatPage() {
         content: url,
         createdAt: serverTimestamp(),
         viewOnce: false,
-        timeLeft: 900,
+        timeLeft: msgExpiry,
         reactions: {}
       });
     } catch (err) {
@@ -277,7 +288,16 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-deep-void">
+    <div className={`flex flex-col h-screen overflow-hidden bg-deep-void no-print secure-content ${!isWindowFocused ? 'blur-md' : ''}`}>
+      {!isWindowFocused && (
+        <div className="no-screenshot-overlay">
+          <div className="text-center p-8 bg-surface-dark rounded-2xl border border-primary/20 shadow-2xl">
+            <span className="material-icons text-primary text-5xl mb-4">visibility_off</span>
+            <h2 className="text-xl font-bold">Privacy Mode</h2>
+            <p className="text-slate-400 text-sm mt-2">Content hidden for security</p>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <header className="glass-panel z-50 px-6 py-4 flex items-center justify-between shadow-lg relative">
         <div className="flex items-center gap-3">
@@ -339,7 +359,13 @@ export default function ChatPage() {
                       : 'bg-surface-dark border-gray-700/50 text-gray-200 rounded-tl-none'
                   }`}>
                     {msg.type === 'image' ? (
-                      <img src={msg.content} alt="Shared content" className="rounded-lg max-h-60 max-w-full object-cover" />
+                      <img 
+                        src={msg.content} 
+                        alt="Shared content" 
+                        onContextMenu={(e) => e.preventDefault()}
+                        draggable={false}
+                        className="rounded-lg max-h-60 max-w-full object-cover select-none pointer-events-none" 
+                      />
                     ) : (
                       <p className="text-sm md:text-base leading-relaxed break-words">{msg.content}</p>
                     )}
